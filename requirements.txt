@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pywin32
+psutil
+pynput
+watchdog
+groq
+python-dotenv
+aiosqlite

@@ -1,0 +1,13 @@
+{
+  "tracking_enabled": true,
+  "track_applications": true,
+  "track_websites": true,
+  "track_interaction_metrics": true,
+  "track_coding_metrics": true,
+  "enable_groq": true,
+  "idle_threshold_seconds": 300,
+  "poll_interval_seconds": 5,
+  "aggregation_interval_seconds": 30,
+  "data_retention_days": 90,
+  "privacy_mode": "normal"
+}
