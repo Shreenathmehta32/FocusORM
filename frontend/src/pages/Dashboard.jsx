@@ -13,10 +13,10 @@ import {
   Coffee,
   Play,
   Pause,
-  Layers,
-  ArrowUpRight,
   Code2,
-  BookOpen
+  BookOpen,
+  RefreshCw,
+  Activity,
 } from 'lucide-react'
 import {
   BarChart,
@@ -24,11 +24,12 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  CartesianGrid,
 } from 'recharts'
 
-function formatDuration(secs) {
-  if (!secs || secs <= 0) return '0s'
+function fmt(secs) {
+  if (!secs || secs <= 0) return '0m'
   if (secs < 60) return `${Math.round(secs)}s`
   const m = Math.floor(secs / 60)
   if (m < 60) return `${m}m`
@@ -37,23 +38,54 @@ function formatDuration(secs) {
   return rm ? `${h}h ${rm}m` : `${h}h`
 }
 
-function StatTile({ title, value, subtext, icon: Icon, colorClass, borderClass, bgClass }) {
+/* ─── Stat Card ─────────────────────────────────────────────── */
+function StatCard({ title, value, subtext, icon: Icon, color = '#6366f1', wide }) {
+  const rgb = hexToRgb(color)
   return (
-    <div className={`focus-card p-4 flex flex-col justify-between ${borderClass || 'border-slate-800'}`}>
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">
+    <div
+      className="card card-glow"
+      style={{
+        padding: '18px 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        position: 'relative',
+        overflow: 'hidden',
+        gridColumn: wide ? 'span 2' : 'span 1',
+      }}
+    >
+      {/* Subtle tinted bg */}
+      <div style={{
+        position: 'absolute',
+        top: 0, right: 0,
+        width: '80px', height: '80px',
+        borderRadius: '0 16px 0 80px',
+        background: `radial-gradient(circle, rgba(${rgb},0.1) 0%, transparent 70%)`,
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {title}
         </span>
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${bgClass || 'bg-slate-800'}`}>
-          <Icon className={`w-3.5 h-3.5 ${colorClass || 'text-slate-300'}`} />
+        <div style={{
+          width: '32px', height: '32px',
+          borderRadius: '10px',
+          background: `rgba(${rgb},0.12)`,
+          border: `1px solid rgba(${rgb},0.2)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Icon size={15} color={color} strokeWidth={2.5} />
         </div>
       </div>
-      <div className="mt-1">
-        <div className="text-xl font-bold font-mono text-white tracking-tight truncate">
-          {value || '0m'}
+
+      <div>
+        <div className="stat-value" style={{ fontSize: '24px', color: '#f0f4ff' }}>
+          {value || '—'}
         </div>
         {subtext && (
-          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
             {subtext}
           </p>
         )}
@@ -62,89 +94,136 @@ function StatTile({ title, value, subtext, icon: Icon, colorClass, borderClass, 
   )
 }
 
-function LiveActivityBanner({ status, onTogglePause }) {
-  if (!status || !status.current_application) {
+/* ─── Live Activity Banner ──────────────────────────────────── */
+function LiveBanner({ status, onTogglePause }) {
+  const isProductive = status?.current_classification === 'PRODUCTIVE'
+  const isDistraction = status?.current_classification === 'DISTRACTION'
+  const isNeutral = status?.current_classification === 'NEUTRAL'
+
+  const accentColor = isProductive ? '#10b981'
+    : isDistraction ? '#f43f5e'
+    : isNeutral ? '#f59e0b'
+    : '#6366f1'
+
+  const accentRgb = hexToRgb(accentColor)
+
+  if (!status?.current_application) {
     return (
-      <div className="focus-card p-5 border-slate-800 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-slate-500 animate-pulse" />
+      <div className="card" style={{ padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="pulse-dot" style={{ color: '#4a5578' }} />
           <div>
-            <h3 className="text-sm font-semibold text-slate-200">Waiting for activity data...</h3>
-            <p className="text-xs text-slate-400 mt-0.5">FocusORM agent is active in the background</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              Waiting for activity data...
+            </p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              FocusORM agent is running in the background
+            </p>
           </div>
         </div>
       </div>
     )
   }
 
-  const isDistraction = status.current_classification === 'DISTRACTION'
-  const isProductive = status.current_classification === 'PRODUCTIVE'
-  const isNeutral = status.current_classification === 'NEUTRAL'
-
-  const classificationClass = isProductive
-    ? 'badge-productive'
-    : isDistraction
-      ? 'badge-distraction'
-      : isNeutral
-        ? 'badge-neutral'
-        : 'badge-unknown'
-
   return (
-    <div className="focus-card p-5 relative overflow-hidden border-indigo-500/30 bg-gradient-to-r from-slate-900 via-slate-900/95 to-indigo-950/20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Left Info */}
-        <div className="flex items-start gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 mt-0.5">
-            <Monitor className="w-5 h-5 text-indigo-400" />
+    <div
+      className="card"
+      style={{
+        padding: '20px 24px',
+        background: `linear-gradient(135deg, rgba(${accentRgb},0.06) 0%, rgba(13,20,38,0.9) 100%)`,
+        borderColor: `rgba(${accentRgb},0.2)`,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Corner glow */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0,
+        width: '200px', height: '100%',
+        background: `linear-gradient(90deg, rgba(${accentRgb},0.08) 0%, transparent 100%)`,
+        pointerEvents: 'none',
+        borderRadius: '16px 0 0 16px',
+      }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap', position: 'relative' }}>
+        {/* Left */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
+          <div style={{
+            width: '44px', height: '44px',
+            borderRadius: '12px',
+            background: `rgba(${accentRgb},0.12)`,
+            border: `1px solid rgba(${accentRgb},0.25)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Monitor size={20} color={accentColor} />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-base font-bold text-white truncate">
+
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#f0f4ff' }}>
                 {status.current_application}
               </span>
-              <span className={`badge ${classificationClass}`}>
+              <span className={`badge badge-${status.current_classification?.toLowerCase()}`}>
                 {status.current_classification || 'UNKNOWN'}
               </span>
               {status.is_idle && (
                 <span className="badge badge-idle">Idle</span>
               )}
             </div>
-
-            <p className="text-xs text-slate-400 truncate max-w-xl mt-1">
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '480px' }}>
               {status.current_window_title || 'Foreground window active'}
             </p>
-
             {status.browser_domain && (
-              <span className="inline-block text-[11px] font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded mt-1.5 border border-indigo-500/20">
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '6px',
+                fontSize: '11px',
+                fontFamily: 'JetBrains Mono, monospace',
+                color: '#818cf8',
+                background: 'rgba(99,102,241,0.1)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                padding: '2px 8px',
+                borderRadius: '6px',
+              }}>
                 🌐 {status.browser_domain}
               </span>
             )}
           </div>
         </div>
 
-        {/* Right Timer & Status */}
-        <div className="flex items-center justify-between md:justify-end gap-5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
-          <div className="text-left md:text-right">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Current Session
+        {/* Right */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+              Session
             </div>
-            <div className="text-2xl font-mono font-bold text-indigo-300">
-              {formatDuration(status.current_session_duration)}
+            <div className="stat-value" style={{ fontSize: '26px', color: accentColor }}>
+              {fmt(status.current_session_duration)}
             </div>
-            <div className="text-[11px] text-slate-400 capitalize">
-              {status.current_activity_level} interaction
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize', marginTop: '2px' }}>
+              {status.current_activity_level} activity
             </div>
           </div>
 
           <button
             onClick={onTogglePause}
-            className={`p-2.5 rounded-xl border flex items-center justify-center transition-all ${status.paused
-                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30'
-                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
-              }`}
-            title={status.paused ? 'Resume tracking' : 'Pause tracking'}
+            style={{
+              width: '40px', height: '40px',
+              borderRadius: '10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: status.paused ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)',
+              border: status.paused ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)',
+              color: status.paused ? '#34d399' : 'rgba(139,156,200,0.7)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+            }}
           >
-            {status.paused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+            {status.paused ? <Play size={16} strokeWidth={2.5} /> : <Pause size={16} strokeWidth={2.5} />}
           </button>
         </div>
       </div>
@@ -152,71 +231,86 @@ function LiveActivityBanner({ status, onTogglePause }) {
   )
 }
 
+/* ─── Custom Recharts Tooltip ───────────────────────────────── */
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: '#0f1829',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: '10px',
+      padding: '10px 14px',
+      fontSize: '12px',
+    }}>
+      <p style={{ color: 'rgba(139,156,200,0.7)', marginBottom: '6px', fontWeight: 600 }}>{label}</p>
+      {payload.map((p, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: p.fill, flexShrink: 0 }} />
+          <span style={{ color: '#f0f4ff' }}>{p.name}: <b>{p.value}m</b></span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ─── Productivity Chart ────────────────────────────────────── */
 function ProductivityChart({ hourly }) {
-  if (!hourly || hourly.length === 0) {
+  if (!hourly?.length) {
     return (
-      <div className="focus-card p-6 min-w-0">
-        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4">
-          Hourly Distribution
-        </h3>
-        <p className="text-xs text-slate-400">Collecting hourly data...</p>
+      <div className="card" style={{ padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <Activity size={32} color="rgba(74,85,120,0.5)" style={{ margin: '0 auto 10px' }} />
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Collecting hourly data...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="focus-card p-6 min-w-0 flex flex-col justify-between">
-      <div className="flex items-center justify-between mb-4">
+    <div className="card card-glow" style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div>
-          <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff', letterSpacing: '-0.01em' }}>
             Hourly Productivity
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">Active minutes categorized per hour</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
+            Activity breakdown per hour
+          </p>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-emerald-400" /> Productive
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Neutral
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-rose-400" /> Distraction
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {[
+            { label: 'Productive', color: '#10b981' },
+            { label: 'Neutral', color: '#f59e0b' },
+            { label: 'Distraction', color: '#f43f5e' },
+          ].map(({ label, color }) => (
+            <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '2px', background: color, flexShrink: 0 }} />
+              {label}
+            </span>
+          ))}
         </div>
       </div>
-
-      <div className="w-full h-56 min-w-0">
+      <div style={{ height: '220px' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={hourly} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={hourly} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barSize={12}>
+            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tick={{ fontSize: 10, fill: 'rgba(74,85,120,0.9)' }}
               tickLine={false}
-              axisLine={{ stroke: '#334155' }}
+              axisLine={false}
               interval={2}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tick={{ fontSize: 10, fill: 'rgba(74,85,120,0.9)' }}
               tickLine={false}
-              axisLine={{ stroke: '#334155' }}
+              axisLine={false}
               unit="m"
             />
-            <Tooltip
-              cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-              contentStyle={{
-                backgroundColor: '#0f172a',
-                borderColor: '#334155',
-                borderRadius: '10px',
-                fontSize: '12px',
-                color: '#f8fafc',
-                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)'
-              }}
-              formatter={(value, name) => [`${value} mins`, name]}
-            />
-            <Bar dataKey="productive" name="Productive" stackId="a" fill="#34d399" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="neutral" name="Neutral" stackId="a" fill="#fbbf24" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="distraction" name="Distraction" stackId="a" fill="#f87171" radius={[3, 3, 0, 0]} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <Bar dataKey="productive" name="Productive" stackId="a" fill="#10b981" />
+            <Bar dataKey="neutral" name="Neutral" stackId="a" fill="#f59e0b" />
+            <Bar dataKey="distraction" name="Distraction" stackId="a" fill="#f43f5e" radius={[3,3,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -224,74 +318,136 @@ function ProductivityChart({ hourly }) {
   )
 }
 
-function TopAppsList({ apps }) {
+/* ─── Top Apps List ─────────────────────────────────────────── */
+function TopApps({ apps }) {
   const topApps = (apps || []).slice(0, 6)
-  const maxSecs = Math.max(...topApps.map(a => a.total_seconds || 1), 1)
+  const max = Math.max(...topApps.map(a => a.total_seconds || 1), 1)
+
+  const classColor = (cls) => cls === 'PRODUCTIVE' ? '#10b981'
+    : cls === 'DISTRACTION' ? '#f43f5e'
+    : '#f59e0b'
 
   return (
-    <div className="focus-card p-6 min-w-0 flex flex-col justify-between">
-      <div className="flex items-center justify-between mb-4">
+    <div className="card card-glow" style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div>
-          <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff', letterSpacing: '-0.01em' }}>
             Top Applications
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">Most active apps today</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
+            Most active today
+          </p>
         </div>
-        <span className="text-xs font-semibold text-slate-400">
-          {topApps.length} tracked
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
+          {topApps.length} apps
         </span>
       </div>
 
-      <div className="space-y-3.5">
-        {topApps.length === 0 ? (
-          <p className="text-xs text-slate-400 py-8 text-center">No application records logged yet.</p>
-        ) : (
-          topApps.map((app, idx) => {
-            const isProductive = app.classification === 'PRODUCTIVE'
-            const isDistraction = app.classification === 'DISTRACTION'
-            const barFill = isProductive
-              ? 'bg-emerald-400'
-              : isDistraction
-                ? 'bg-rose-400'
-                : 'bg-amber-400'
-
-            const pct = Math.min(100, Math.round((app.total_seconds / maxSecs) * 100))
-
+      {topApps.length === 0 ? (
+        <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+          No application records yet.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {topApps.map((app, idx) => {
+            const color = classColor(app.classification)
+            const pct = Math.min(100, Math.round((app.total_seconds / max) * 100))
             return (
-              <div key={idx} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-200 truncate max-w-[180px]">
-                    {app.application}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-slate-300 font-medium">
-                      {app.total_formatted}
+              <div key={idx}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <span style={{
+                      width: '20px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      color: 'var(--text-muted)',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      flexShrink: 0,
+                    }}>
+                      {String(idx + 1).padStart(2, '0')}
                     </span>
-                    <span className="text-[10px] text-slate-400">
-                      ({app.session_count}s)
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#f0f4ff',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '160px',
+                    }}>
+                      {app.application}
                     </span>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <span className="stat-value" style={{ fontSize: '13px', color: '#f0f4ff' }}>
+                      {app.total_formatted}
+                    </span>
+                    <span style={{
+                      width: '6px', height: '6px', borderRadius: '50%',
+                      background: color, flexShrink: 0,
+                    }} />
+                  </div>
                 </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="progress-track">
                   <div
-                    className={`h-full rounded-full ${barFill} transition-all duration-500`}
-                    style={{ width: `${pct}%` }}
+                    className="progress-fill"
+                    style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}cc, ${color})` }}
                   />
                 </div>
               </div>
             )
-          })
-        )}
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Score Ring ─────────────────────────────────────────────── */
+function ScoreRing({ score }) {
+  const color = score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#f43f5e'
+  const r = 36
+  const circumference = 2 * Math.PI * r
+  const dash = (score / 100) * circumference
+
+  return (
+    <div style={{ position: 'relative', width: '88px', height: '88px', flexShrink: 0 }}>
+      <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="44" cy="44" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+        <circle
+          cx="44" cy="44" r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circumference}`}
+          style={{ transition: 'stroke-dasharray 1s ease' }}
+        />
+      </svg>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <span className="stat-value" style={{ fontSize: '18px', color }}>{score}</span>
+        <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Score
+        </span>
       </div>
     </div>
   )
 }
 
+/* ─── Main Dashboard ────────────────────────────────────────── */
 export default function Dashboard() {
   const [status, setStatus] = useState(null)
   const [today, setToday] = useState(null)
   const [hourly, setHourly] = useState([])
   const [apps, setApps] = useState([])
+  const [refreshing, setRefreshing] = useState(false)
 
   const loadData = async () => {
     try {
@@ -299,14 +455,14 @@ export default function Dashboard() {
         api.getStatus(),
         api.getToday(),
         api.getHourly(),
-        api.getApplications()
+        api.getApplications(),
       ])
       setStatus(s)
       setToday(t)
       setHourly(h || [])
       setApps(a || [])
     } catch (err) {
-      console.error('Error loading dashboard data:', err)
+      console.error('Dashboard load error:', err)
     }
   }
 
@@ -317,142 +473,125 @@ export default function Dashboard() {
   }, [])
 
   const handleTogglePause = async () => {
-    if (status?.paused) {
-      await api.resumeTracking()
-    } else {
-      await api.pauseTracking()
-    }
+    if (status?.paused) await api.resumeTracking()
+    else await api.pauseTracking()
     loadData()
   }
 
-  const productivityScore = today?.productivity_score || 0
-  const scoreColor = productivityScore >= 70
-    ? 'text-emerald-400'
-    : productivityScore >= 45
-      ? 'text-amber-400'
-      : 'text-rose-400'
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadData()
+    setTimeout(() => setRefreshing(false), 500)
+  }
+
+  const score = today?.productivity_score || 0
+  const now = new Date()
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Intelligence Dashboard</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {new Date().toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+            Intelligence Dashboard
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800">
-            <span className="text-xs font-semibold text-slate-400">Score:</span>
-            <span className={`text-sm font-mono font-bold ${scoreColor}`}>
-              {productivityScore}%
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Score pill */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '7px 14px',
+            borderRadius: '10px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <Zap size={13} color="#6366f1" />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
+              Productivity Score
+            </span>
+            <span className="stat-value" style={{
+              fontSize: '15px',
+              color: score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#f43f5e',
+            }}>
+              {score}%
             </span>
           </div>
+
+          <button
+            onClick={handleRefresh}
+            className="btn-glass"
+            style={{ padding: '7px 10px', borderRadius: '10px' }}
+          >
+            <RefreshCw size={13} style={{ animation: refreshing ? 'spin 0.5s linear' : 'none' }} />
+          </button>
         </div>
       </div>
 
-      {/* Hero Live Activity */}
-      <LiveActivityBanner status={status} onTogglePause={handleTogglePause} />
+      {/* ── Live Banner ── */}
+      <LiveBanner status={status} onTogglePause={handleTogglePause} />
 
-      {/* Core KPI Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        <StatTile
-          title="Screen Time"
-          value={today?.total_formatted}
-          subtext="Total session time"
-          icon={Monitor}
-          colorClass="text-indigo-400"
-          bgClass="bg-indigo-500/10"
-        />
-        <StatTile
-          title="Productive"
-          value={today?.productive_formatted}
-          subtext="Active study/work"
-          icon={Flame}
-          colorClass="text-emerald-400"
-          bgClass="bg-emerald-500/10"
-        />
-        <StatTile
-          title="Deep Work"
-          value={today?.deep_work_formatted}
-          subtext="High engagement"
-          icon={Brain}
-          colorClass="text-sky-400"
-          bgClass="bg-sky-500/10"
-        />
-        <StatTile
-          title="Distraction"
-          value={today?.distraction_formatted}
-          subtext="Social & entertainment"
-          icon={AlertTriangle}
-          colorClass="text-rose-400"
-          bgClass="bg-rose-500/10"
-        />
-        <StatTile
-          title="Idle Time"
-          value={today?.idle_formatted}
-          subtext="Away from keyboard"
-          icon={Coffee}
-          colorClass="text-slate-400"
-          bgClass="bg-slate-500/10"
-        />
-        <StatTile
-          title="Efficiency"
-          value={`${productivityScore}%`}
-          subtext="Productive / Active"
-          icon={TrendingUp}
-          colorClass={scoreColor}
-          bgClass="bg-slate-800"
-        />
+      {/* ── KPI Grid ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '14px' }}>
+        <StatCard title="Screen Time"   value={today?.total_formatted}       subtext="Total time"          icon={Monitor}      color="#6366f1" />
+        <StatCard title="Productive"    value={today?.productive_formatted}   subtext="Work / Study"        icon={Flame}        color="#10b981" />
+        <StatCard title="Deep Work"     value={today?.deep_work_formatted}    subtext="High engagement"     icon={Brain}        color="#0ea5e9" />
+        <StatCard title="Distraction"   value={today?.distraction_formatted}  subtext="Social & entertainment" icon={AlertTriangle} color="#f43f5e" />
+        <StatCard title="Idle Time"     value={today?.idle_formatted}         subtext="Away from desk"      icon={Coffee}       color="#64748b" />
+        <StatCard title="Efficiency"    value={`${score}%`}                   subtext="Productive / Active" icon={TrendingUp}   color={score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#f43f5e'} />
       </div>
 
-      {/* Main Visual Charts & Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
+      {/* ── Charts Row ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
         <ProductivityChart hourly={hourly} />
-        <TopAppsList apps={apps} />
+        <TopApps apps={apps} />
       </div>
 
-      {/* Secondary Engagement Insights */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        <StatTile
+      {/* ── Secondary KPIs ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '14px' }}>
+        <StatCard
           title="Longest Focus"
-          value={today ? formatDuration(today.longest_focus_seconds || 0) : '0m'}
-          subtext="Continuous streak"
+          value={today ? fmt(today.longest_focus_seconds || 0) : '0m'}
+          subtext="Best streak"
           icon={Crosshair}
-          colorClass="text-indigo-400"
-          bgClass="bg-indigo-500/10"
+          color="#8b5cf6"
         />
-        <StatTile
+        <StatCard
           title="Keystrokes"
           value={today?.total_keyboard?.toLocaleString() || '0'}
-          subtext="Input interactions"
+          subtext="Input events"
           icon={Keyboard}
-          colorClass="text-purple-400"
-          bgClass="bg-purple-500/10"
+          color="#a855f7"
         />
-        <StatTile
+        <StatCard
           title="Coding Time"
           value={today?.coding_formatted || '0m'}
-          subtext="IDE & terminal activity"
+          subtext="IDE & terminal"
           icon={Code2}
-          colorClass="text-emerald-400"
-          bgClass="bg-emerald-500/10"
+          color="#10b981"
         />
-        <StatTile
+        <StatCard
           title="Learning Time"
           value={today?.learning_formatted || '0m'}
-          subtext="Docs, courses, papers"
+          subtext="Docs & courses"
           icon={BookOpen}
-          colorClass="text-sky-400"
-          bgClass="bg-sky-500/10"
+          color="#0ea5e9"
         />
       </div>
     </div>
   )
+}
+
+function hexToRgb(hex) {
+  if (!hex?.startsWith('#')) return '99,102,241'
+  const r = parseInt(hex.slice(1,3), 16)
+  const g = parseInt(hex.slice(3,5), 16)
+  const b = parseInt(hex.slice(5,7), 16)
+  return `${r},${g},${b}`
 }

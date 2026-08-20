@@ -1,34 +1,62 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { Settings, ToggleLeft, ToggleRight, Clock, Database, Brain, Check, Save } from 'lucide-react'
+import { Settings, ToggleLeft, ToggleRight, Clock, Database, Brain, Check } from 'lucide-react'
 
-function SettingToggle({ label, description, checked, onChange }) {
+function Toggle({ label, description, checked, onChange }) {
   return (
-    <div className="flex items-center justify-between py-3.5 gap-4">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-slate-200">{label}</div>
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '14px 0', gap: '16px',
+      borderBottom: '1px solid rgba(255,255,255,0.04)',
+    }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#f0f4ff' }}>{label}</div>
         {description && (
-          <div className="text-xs text-slate-400 mt-0.5">{description}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{description}</div>
         )}
       </div>
       <button
         type="button"
         onClick={onChange}
-        className="text-slate-400 hover:text-white transition-colors shrink-0 p-1"
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0 }}
       >
-        {checked ? (
-          <ToggleRight className="w-8 h-8 text-emerald-400" />
-        ) : (
-          <ToggleLeft className="w-8 h-8 text-slate-600" />
-        )}
+        {checked
+          ? <ToggleRight size={32} color="#10b981" />
+          : <ToggleLeft size={32} color="rgba(74,85,120,0.7)" />
+        }
       </button>
+    </div>
+  )
+}
+
+function SectionCard({ title, icon: Icon, color = '#6366f1', children }) {
+  const rgb = `${parseInt(color.slice(1,3), 16)},${parseInt(color.slice(3,5), 16)},${parseInt(color.slice(5,7), 16)}`
+  return (
+    <div className="card" style={{ padding: '24px' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '10px',
+        marginBottom: '16px',
+        paddingBottom: '16px',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        <div style={{
+          width: '30px', height: '30px', borderRadius: '8px',
+          background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.2)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Icon size={15} color={color} strokeWidth={2.5} />
+        </div>
+        <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#f0f4ff', letterSpacing: '-0.01em' }}>
+          {title}
+        </h3>
+      </div>
+      {children}
     </div>
   )
 }
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(null)
-  const [saving, setSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
 
   useEffect(() => {
@@ -38,116 +66,106 @@ export default function SettingsPage() {
   const update = async (key, value) => {
     const updated = { ...settings, [key]: value }
     setSettings(updated)
-    setSaving(true)
     await api.updateSettings({ [key]: value })
-    setSaving(false)
     setSavedSuccess(true)
     setTimeout(() => setSavedSuccess(false), 2500)
   }
 
   if (!settings) {
     return (
-      <div className="focus-card p-12 text-center text-slate-400 text-sm">
+      <div className="card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
         Loading settings...
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
-            <Settings className="w-6 h-6 text-indigo-400" />
-            System Settings
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Manage local activity tracking policies, idle timeouts, and AI classification
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '10px',
+              background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Settings size={16} color="#6366f1" strokeWidth={2.5} />
+            </div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.03em' }}>
+              System Settings
+            </h1>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '42px' }}>
+            Manage tracking policies, idle timeouts, and AI classification
           </p>
         </div>
 
         {savedSuccess && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-            <Check className="w-3.5 h-3.5" />
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '7px 12px', borderRadius: '10px',
+            background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+            fontSize: '12px', fontWeight: 600, color: '#34d399',
+          }}>
+            <Check size={13} strokeWidth={3} />
             Saved
           </div>
         )}
       </div>
 
-      {/* Tracking Engines */}
-      <div className="focus-card p-6 space-y-2">
-        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2 mb-3">
-          <Clock className="w-4 h-4 text-indigo-400" />
-          Tracking Subsystems
-        </h3>
-        <div className="divide-y divide-slate-800">
-          <SettingToggle
-            label="Master Tracking Engine"
-            description="Enable or suspend all active window polling and background tracking"
-            checked={settings.tracking_enabled}
-            onChange={() => update('tracking_enabled', !settings.tracking_enabled)}
-          />
-          <SettingToggle
-            label="Application Monitoring"
-            description="Track active desktop processes, title changes, and window focus"
-            checked={settings.track_applications}
-            onChange={() => update('track_applications', !settings.track_applications)}
-          />
-          <SettingToggle
-            label="Browser Activity"
-            description="Receive sanitized domain and tab titles from the browser extension"
-            checked={settings.track_websites}
-            onChange={() => update('track_websites', !settings.track_websites)}
-          />
-          <SettingToggle
-            label="Interaction Counters"
-            description="Aggregate keystroke & mouse counts (No keylogging; privacy-first count only)"
-            checked={settings.track_interaction_metrics}
-            onChange={() => update('track_interaction_metrics', !settings.track_interaction_metrics)}
-          />
-          <SettingToggle
-            label="Coding & File Activity"
-            description="Detect source file creation, editing, and deletion in development folders"
-            checked={settings.track_coding_metrics}
-            onChange={() => update('track_coding_metrics', !settings.track_coding_metrics)}
-          />
+      {/* Tracking Subsystems */}
+      <SectionCard title="Tracking Subsystems" icon={Clock} color="#6366f1">
+        <div>
+          {[
+            { key: 'tracking_enabled', label: 'Master Tracking Engine', desc: 'Enable or suspend all active window polling and background tracking' },
+            { key: 'track_applications', label: 'Application Monitoring', desc: 'Track active desktop processes, title changes, and window focus' },
+            { key: 'track_websites', label: 'Browser Activity', desc: 'Receive sanitized domain and tab titles from the browser extension' },
+            { key: 'track_interaction_metrics', label: 'Interaction Counters', desc: 'Aggregate keystroke & mouse counts (No keylogging; privacy-first count only)' },
+            { key: 'track_coding_metrics', label: 'Coding & File Activity', desc: 'Detect source file creation, editing, and deletion in development folders' },
+          ].map(({ key, label, desc }) => (
+            <Toggle
+              key={key}
+              label={label}
+              description={desc}
+              checked={settings[key]}
+              onChange={() => update(key, !settings[key])}
+            />
+          ))}
         </div>
-      </div>
+      </SectionCard>
 
       {/* AI Classification */}
-      <div className="focus-card p-6 space-y-3">
-        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <Brain className="w-4 h-4 text-indigo-400" />
-          Groq AI Intelligence (Optional)
-        </h3>
-        <p className="text-xs text-slate-400">
+      <SectionCard title="Groq AI Intelligence" icon={Brain} color="#8b5cf6">
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
           When enabled, unrecognized apps/sites are categorized via Groq LLM using minimal sanitized metadata.
         </p>
-        <div className="pt-2 border-t border-slate-800">
-          <SettingToggle
-            label="Enable Groq AI Classification"
-            description="Only sends application name, domain, and sanitized title"
-            checked={settings.enable_groq}
-            onChange={() => update('enable_groq', !settings.enable_groq)}
-          />
-        </div>
-      </div>
+        <Toggle
+          label="Enable Groq AI Classification"
+          description="Only sends application name, domain, and sanitized title"
+          checked={settings.enable_groq}
+          onChange={() => update('enable_groq', !settings.enable_groq)}
+        />
+      </SectionCard>
 
-      {/* Thresholds & Retention */}
-      <div className="focus-card p-6 space-y-4">
-        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <Database className="w-4 h-4 text-indigo-400" />
-          Data Retention & Idle Configuration
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
-            <div className="text-xs font-semibold text-slate-300">Idle Inactivity Threshold</div>
-            <p className="text-[11px] text-slate-400">Minutes of zero hardware input before logging as idle</p>
+      {/* Data Retention */}
+      <SectionCard title="Data Retention & Idle Configuration" icon={Database} color="#0ea5e9">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div style={{
+            padding: '16px', borderRadius: '12px',
+            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+              Idle Inactivity Threshold
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.4 }}>
+              Minutes of zero input before logging as idle
+            </p>
             <select
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
               value={settings.idle_threshold_seconds}
               onChange={(e) => update('idle_threshold_seconds', parseInt(e.target.value))}
+              style={{ width: '100%' }}
             >
               <option value={120}>2 minutes (Strict)</option>
               <option value={300}>5 minutes (Standard)</option>
@@ -156,13 +174,20 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
-            <div className="text-xs font-semibold text-slate-300">Local Data Retention</div>
-            <p className="text-[11px] text-slate-400">Automatically purge local SQLite records older than</p>
+          <div style={{
+            padding: '16px', borderRadius: '12px',
+            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+              Local Data Retention
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.4 }}>
+              Automatically purge SQLite records older than
+            </p>
             <select
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
               value={settings.data_retention_days}
               onChange={(e) => update('data_retention_days', parseInt(e.target.value))}
+              style={{ width: '100%' }}
             >
               <option value={7}>7 days</option>
               <option value={30}>30 days</option>
@@ -172,7 +197,7 @@ export default function SettingsPage() {
             </select>
           </div>
         </div>
-      </div>
+      </SectionCard>
     </div>
   )
 }

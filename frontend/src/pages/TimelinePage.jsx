@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { Clock, Monitor, Globe, ChevronRight, Activity, Calendar } from 'lucide-react'
+import { Clock, Monitor, Globe, ChevronRight, Hash } from 'lucide-react'
 
 function fmt(secs) {
   if (!secs || secs <= 0) return '0s'
@@ -12,8 +12,20 @@ function fmt(secs) {
 
 function fmtTime(iso) {
   if (!iso) return ''
-  const d = new Date(iso)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+const ACCENT = {
+  PRODUCTIVE: '#10b981',
+  DISTRACTION: '#f43f5e',
+  NEUTRAL: '#f59e0b',
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3), 16)
+  const g = parseInt(hex.slice(3,5), 16)
+  const b = parseInt(hex.slice(5,7), 16)
+  return `${r},${g},${b}`
 }
 
 export default function TimelinePage() {
@@ -27,93 +39,167 @@ export default function TimelinePage() {
     })
   }, [])
 
+  const productiveCount = sessions.filter(s => s.classification === 'PRODUCTIVE').length
+  const distractionCount = sessions.filter(s => s.classification === 'DISTRACTION').length
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
-            <Clock className="w-6 h-6 text-indigo-400" />
-            Activity Timeline
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Full chronological reconstruction of sessions recorded today
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '10px',
+              background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Clock size={16} color="#0ea5e9" strokeWidth={2.5} />
+            </div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.03em' }}>
+              Activity Timeline
+            </h1>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '42px' }}>
+            Chronological reconstruction of today's sessions
           </p>
         </div>
-        <div className="text-xs text-slate-400 font-semibold px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 self-start">
-          {sessions.length} sessions logged
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            padding: '7px 12px', borderRadius: '10px',
+            background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+            fontSize: '12px', fontWeight: 600, color: '#34d399',
+          }}>
+            {productiveCount} productive
+          </div>
+          <div style={{
+            padding: '7px 12px', borderRadius: '10px',
+            background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)',
+            fontSize: '12px', fontWeight: 600, color: '#fb7185',
+          }}>
+            {distractionCount} distracting
+          </div>
+          <div style={{
+            padding: '7px 12px', borderRadius: '10px',
+            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+            fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
+          }}>
+            {sessions.length} total
+          </div>
         </div>
       </div>
 
-      {/* Timeline Stream */}
-      <div className="space-y-3">
+      {/* Timeline */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {loading ? (
-          <div className="focus-card p-12 text-center text-slate-400 text-sm">
+          <div className="card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
             Loading timeline records...
           </div>
         ) : sessions.length === 0 ? (
-          <div className="focus-card p-12 text-center text-slate-400 text-sm">
+          <div className="card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
             No activity records logged yet today.
           </div>
         ) : (
           sessions.map((s, idx) => {
-            const isProd = s.classification === 'PRODUCTIVE'
-            const isDist = s.classification === 'DISTRACTION'
-            const isNeut = s.classification === 'NEUTRAL'
-            const badgeClass = isProd
-              ? 'badge-productive'
-              : isDist
-              ? 'badge-distraction'
-              : isNeut
-              ? 'badge-neutral'
-              : 'badge-unknown'
-
-            const borderAccent = isProd
-              ? 'border-l-4 border-l-emerald-500'
-              : isDist
-              ? 'border-l-4 border-l-rose-500'
-              : isNeut
-              ? 'border-l-4 border-l-amber-500'
-              : 'border-l-4 border-l-purple-500'
+            const color = ACCENT[s.classification] || '#6366f1'
+            const rgb = hexToRgb(color)
+            const badgeClass = `badge-${(s.classification || 'unknown').toLowerCase()}`
 
             return (
               <div
                 key={s.id || idx}
-                className={`focus-card focus-card-interactive p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${borderAccent}`}
+                className="card card-lift"
+                style={{
+                  padding: '14px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '16px',
+                  flexWrap: 'wrap',
+                  borderLeft: `3px solid ${color}`,
+                  borderLeftColor: color,
+                  borderRadius: '0 12px 12px 0',
+                  background: `linear-gradient(90deg, rgba(${rgb},0.04) 0%, var(--bg-card) 30%)`,
+                  transition: 'transform 0.15s, box-shadow 0.15s',
+                }}
               >
-                {/* Left Block */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-mono text-xs font-bold text-slate-400 shrink-0 w-12 text-right">
+                {/* Left */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                  {/* Time */}
+                  <span style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    flexShrink: 0,
+                    minWidth: '44px',
+                    textAlign: 'right',
+                  }}>
                     {fmtTime(s.start_time)}
                   </span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold text-white truncate">
+
+                  {/* Dot */}
+                  <div style={{
+                    width: '8px', height: '8px', borderRadius: '50%',
+                    background: color,
+                    boxShadow: `0 0 6px ${color}`,
+                    flexShrink: 0,
+                  }} />
+
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: '#f0f4ff',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '220px',
+                      }}>
                         {s.application}
                       </span>
                       {s.domain && (
-                        <span className="text-xs font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                        <span style={{
+                          fontSize: '10px',
+                          fontFamily: 'JetBrains Mono, monospace',
+                          color: '#818cf8',
+                          background: 'rgba(99,102,241,0.1)',
+                          border: '1px solid rgba(99,102,241,0.2)',
+                          padding: '1px 7px',
+                          borderRadius: '6px',
+                          whiteSpace: 'nowrap',
+                        }}>
                           {s.domain}
                         </span>
                       )}
                     </div>
                     {s.window_title && (
-                      <p className="text-xs text-slate-400 truncate max-w-xl mt-0.5">
+                      <p style={{
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        marginTop: '2px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '420px',
+                      }}>
                         {s.window_title}
                       </p>
                     )}
                   </div>
                 </div>
 
-                {/* Right Metrics */}
-                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
-                  <div className="text-left sm:text-right">
-                    <div className="font-mono text-sm font-bold text-slate-200">
+                {/* Right */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', fontWeight: 700, color: '#f0f4ff' }}>
                       {fmt(s.duration_seconds)}
                     </div>
-                    <span className="text-[10px] text-slate-400">
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
                       {s.active_seconds > 0 ? `${fmt(s.active_seconds)} active` : 'Passive'}
-                    </span>
+                    </div>
                   </div>
                   <span className={`badge ${badgeClass}`}>
                     {s.category || s.classification}

@@ -1,13 +1,31 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { AlertTriangle, TrendingDown, Clock, ShieldAlert, Sparkles, PieChart as PieIcon } from 'lucide-react'
+import { AlertTriangle, Sparkles } from 'lucide-react'
 import {
   PieChart,
   Pie,
   Cell,
   ResponsiveContainer,
-  Tooltip
+  Tooltip,
 } from 'recharts'
+
+const CustomPieTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: '#0f1829',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: '10px',
+      padding: '10px 14px',
+      fontSize: '12px',
+    }}>
+      <p style={{ color: '#f0f4ff', fontWeight: 600 }}>{payload[0].name}</p>
+      <p style={{ color: 'var(--text-muted)', marginTop: '2px' }}>
+        {Math.round(payload[0].value / 60)} minutes
+      </p>
+    </div>
+  )
+}
 
 export default function DistractionPage() {
   const [analytics, setAnalytics] = useState(null)
@@ -21,7 +39,7 @@ export default function DistractionPage() {
         const [a, ap, ws] = await Promise.all([
           api.getDailyAnalytics(),
           api.getApplications(),
-          api.getWebsites()
+          api.getWebsites(),
         ])
         setAnalytics(a)
         setApps(ap || [])
@@ -33,214 +51,224 @@ export default function DistractionPage() {
     load()
   }, [])
 
-  const distractionApps = apps.filter(app => app.classification === 'DISTRACTION')
-  const distractionWebsites = websites.filter(site => site.classification === 'DISTRACTION')
+  const distractionApps = apps.filter(a => a.classification === 'DISTRACTION')
+  const distractionWebsites = websites.filter(s => s.classification === 'DISTRACTION')
   const totalDistractionSecs = analytics?.summary?.distraction_seconds || 0
+  const inactivity = analytics?.inactivity || { low_engagement_sessions: [] }
 
   const pieData = [
-    { name: 'Social Media', value: analytics?.summary?.social_media_seconds || 0, color: '#f87171' },
+    { name: 'Social Media', value: analytics?.summary?.social_media_seconds || 0, color: '#f43f5e' },
     { name: 'Entertainment', value: analytics?.summary?.entertainment_seconds || 0, color: '#fb923c' },
     {
       name: 'Other Distractions',
-      value: Math.max(0, totalDistractionSecs - (analytics?.summary?.social_media_seconds || 0) - (analytics?.summary?.entertainment_seconds || 0)),
-      color: '#f43f5e'
-    }
+      value: Math.max(0, totalDistractionSecs
+        - (analytics?.summary?.social_media_seconds || 0)
+        - (analytics?.summary?.entertainment_seconds || 0)),
+      color: '#f97316',
+    },
   ].filter(d => d.value > 0)
 
-  const inactivity = analytics?.inactivity || { low_engagement_sessions: [] }
+  const topDistractions = [...distractionApps, ...distractionWebsites]
+    .sort((a, b) => b.total_seconds - a.total_seconds)
+    .slice(0, 5)
+
+  const kpis = [
+    {
+      label: 'Total Distraction', value: analytics?.summary?.distraction_formatted || '0m',
+      color: '#f43f5e', sub: 'Confirmed distraction time',
+    },
+    {
+      label: 'Low Engagement', value: inactivity.total_potential_inactive_formatted || '0m',
+      color: '#f59e0b', sub: 'Open but inactive',
+    },
+    {
+      label: 'Inactive Sessions', value: inactivity.session_count || 0,
+      color: '#f0f4ff', sub: `Most: ${inactivity.most_affected_application || 'None'}`,
+    },
+  ]
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
-          <AlertTriangle className="w-6 h-6 text-rose-400" />
-          Distraction & Inactivity Intelligence
-        </h1>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Objective breakdown of time sinks, social media, and low-engagement study periods
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+          <div style={{
+            width: '32px', height: '32px', borderRadius: '10px',
+            background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <AlertTriangle size={16} color="#f43f5e" strokeWidth={2.5} />
+          </div>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.03em' }}>
+            Distraction Intelligence
+          </h1>
+        </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '42px' }}>
+          Time sinks, social media, and low-engagement detection
         </p>
       </div>
 
-      {/* Top KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        <div className="focus-card p-5 border-rose-500/20">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Total Distraction Time
-          </span>
-          <div className="text-2xl font-mono font-bold text-rose-400 mt-1">
-            {analytics?.summary?.distraction_formatted || '0m'}
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+        {kpis.map(({ label, value, color, sub }) => (
+          <div key={label} className="card card-glow" style={{
+            padding: '20px',
+            borderColor: `rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},0.15)`,
+          }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '8px' }}>
+              {label}
+            </span>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '24px', fontWeight: 700, color, lineHeight: 1 }}>
+              {value}
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+              {sub}
+            </span>
           </div>
-          <span className="text-xs text-slate-400 mt-0.5 block">
-            Confirmed distraction apps & websites
-          </span>
-        </div>
-
-        <div className="focus-card p-5 border-amber-500/20">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Low Engagement Time
-          </span>
-          <div className="text-2xl font-mono font-bold text-amber-400 mt-1">
-            {inactivity.total_potential_inactive_formatted || '0m'}
-          </div>
-          <span className="text-xs text-slate-400 mt-0.5 block">
-            Open windows with minimal user interaction
-          </span>
-        </div>
-
-        <div className="focus-card p-5 border-slate-800">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Inactive Sessions
-          </span>
-          <div className="text-2xl font-mono font-bold text-white mt-1">
-            {inactivity.session_count || 0}
-          </div>
-          <span className="text-xs text-slate-400 mt-0.5 block">
-            Most affected: {inactivity.most_affected_application || 'None'}
-          </span>
-        </div>
+        ))}
       </div>
 
-      {/* Charts & Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
-        {/* Distraction Breakdown */}
-        <div className="focus-card p-6 min-w-0 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-              Distraction Sources
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Category distribution</p>
-          </div>
+      {/* Charts Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+
+        {/* Pie Chart */}
+        <div className="card card-glow" style={{ padding: '24px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff', marginBottom: '4px' }}>
+            Distraction Sources
+          </h3>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+            Category distribution
+          </p>
 
           {pieData.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-400">
-              No distractions recorded today. Excellent focus! 🚀
+            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+              🚀 No distractions recorded today. Excellent focus!
             </div>
           ) : (
-            <div className="h-56 min-w-0 mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={4}
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0f172a',
-                      borderColor: '#334155',
-                      borderRadius: '10px',
-                      fontSize: '12px',
-                      color: '#f8fafc'
-                    }}
-                    formatter={(value) => [`${Math.round(value / 60)} mins`, 'Time']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex justify-center gap-4 text-xs text-slate-400 mt-2">
+            <>
+              <div style={{ height: '200px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData} dataKey="value" nameKey="name"
+                      cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4}
+                    >
+                      {pieData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomPieTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
                 {pieData.map((d, i) => (
-                  <span key={i} className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                  <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: d.color, flexShrink: 0 }} />
                     {d.name}
                   </span>
                 ))}
               </div>
-            </div>
+            </>
           )}
         </div>
 
-        {/* Top Distraction Targets */}
-        <div className="focus-card p-6 min-w-0 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-              Top Distraction Targets
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Ranked distracting activities</p>
-          </div>
+        {/* Top Targets */}
+        <div className="card card-glow" style={{ padding: '24px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff', marginBottom: '4px' }}>
+            Top Distraction Targets
+          </h3>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+            Ranked distracting activities
+          </p>
 
-          <div className="space-y-3 mt-4">
-            {[...distractionApps, ...distractionWebsites].length === 0 ? (
-              <p className="text-xs text-slate-400 py-12 text-center">
-                No distracting apps or sites logged today.
-              </p>
-            ) : (
-              [...distractionApps, ...distractionWebsites]
-                .sort((a, b) => b.total_seconds - a.total_seconds)
-                .slice(0, 5)
-                .map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-slate-800"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-400" />
-                      <span className="text-xs font-semibold text-slate-200">
-                        {item.application || item.domain}
-                      </span>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-rose-400">
-                      {item.total_formatted}
+          {topDistractions.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+              No distracting apps or sites logged today.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {topDistractions.map((item, idx) => (
+                <div key={idx} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px', borderRadius: '10px',
+                  background: 'rgba(244,63,94,0.05)', border: '1px solid rgba(244,63,94,0.12)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', fontWeight: 700, color: 'rgba(244,63,94,0.6)', width: '16px' }}>
+                      {idx + 1}
+                    </span>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f43f5e', flexShrink: 0 }} />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#f0f4ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.application || item.domain}
                     </span>
                   </div>
-                ))
-            )}
-          </div>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', fontWeight: 700, color: '#fb7185', flexShrink: 0 }}>
+                    {item.total_formatted}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Inactivity & Low Engagement Details */}
-      <div className="focus-card p-6 space-y-4">
-        <div>
-          <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            Low Engagement Detection Analysis
+      {/* Low Engagement Section */}
+      <div className="card card-glow" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <Sparkles size={16} color="#f59e0b" />
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff' }}>
+            Low Engagement Analysis
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            FocusORM detects when tools are open without meaningful interaction, distinguishing between active deep study and passive background windows.
-          </p>
         </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          FocusORM detects when tools are open without meaningful interaction, distinguishing between active deep study and passive background windows.
+        </p>
 
-        <div className="space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {inactivity.low_engagement_sessions.length === 0 ? (
-            <div className="p-6 bg-slate-900/40 rounded-xl text-center text-xs text-slate-400">
-              No low-engagement anomalies detected today.
+            <div style={{
+              padding: '24px', borderRadius: '10px',
+              background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.12)',
+              textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)',
+            }}>
+              ✅ No low-engagement anomalies detected today.
             </div>
           ) : (
             inactivity.low_engagement_sessions.map((session, i) => (
-              <div
-                key={i}
-                className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">
+              <div key={i} style={{
+                padding: '16px', borderRadius: '10px',
+                background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#f0f4ff' }}>
                       {session.application}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold uppercase">
+                    <span style={{
+                      fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
+                      background: 'rgba(245,158,11,0.1)', color: '#fbbf24',
+                      border: '1px solid rgba(245,158,11,0.2)', padding: '2px 7px', borderRadius: '9999px',
+                    }}>
                       {session.engagement_level?.replace('_', ' ')}
                     </span>
                   </div>
-                  <span className="text-xs font-mono text-slate-400">
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'var(--text-muted)' }}>
                     {session.duration_formatted}
                   </span>
                 </div>
-                <p className="text-xs text-slate-300">{session.description}</p>
-                {session.signals && session.signals.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  {session.description}
+                </p>
+                {session.signals?.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                     {session.signals.map((sig, sIdx) => (
-                      <span
-                        key={sIdx}
-                        className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 rounded-md border border-slate-700/50"
-                      >
+                      <span key={sIdx} style={{
+                        fontSize: '10px', padding: '2px 8px', borderRadius: '6px',
+                        background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                      }}>
                         {sig}
                       </span>
                     ))}

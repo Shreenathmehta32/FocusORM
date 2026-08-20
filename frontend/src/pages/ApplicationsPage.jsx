@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { AppWindow, Keyboard, MousePointer, Clock, CheckCircle2 } from 'lucide-react'
+import { AppWindow, Keyboard, MousePointer } from 'lucide-react'
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3), 16)
+  const g = parseInt(hex.slice(3,5), 16)
+  const b = parseInt(hex.slice(5,7), 16)
+  return `${r},${g},${b}`
+}
+
+const CLASS_COLOR = {
+  PRODUCTIVE: '#10b981',
+  DISTRACTION: '#f43f5e',
+  NEUTRAL: '#f59e0b',
+}
 
 export default function ApplicationsPage() {
   const [apps, setApps] = useState([])
@@ -16,104 +29,127 @@ export default function ApplicationsPage() {
   const maxSeconds = Math.max(...apps.map(a => a.total_seconds || 1), 1)
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
-            <AppWindow className="w-6 h-6 text-indigo-400" />
-            Application Analytics
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Ranked usage, active focus vs idle duration, and interaction metrics
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '10px',
+              background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <AppWindow size={16} color="#10b981" strokeWidth={2.5} />
+            </div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.03em' }}>
+              Application Analytics
+            </h1>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '42px' }}>
+            Usage, focus vs idle, and interaction metrics
           </p>
         </div>
-        <div className="text-xs text-slate-400 font-semibold px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 self-start">
-          {apps.length} applications logged
+        <div style={{
+          padding: '7px 14px', borderRadius: '10px',
+          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+          fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
+        }}>
+          {apps.length} applications
         </div>
       </div>
 
       {/* App List */}
-      <div className="space-y-3.5">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {loading ? (
-          <div className="focus-card p-12 text-center text-slate-400 text-sm">
-            Loading application records...
+          <div className="card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+            Loading applications...
           </div>
         ) : apps.length === 0 ? (
-          <div className="focus-card p-12 text-center text-slate-400 text-sm">
+          <div className="card" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
             No application records logged yet today.
           </div>
         ) : (
           apps.map((app, idx) => {
-            const isProd = app.classification === 'PRODUCTIVE'
-            const isDist = app.classification === 'DISTRACTION'
-            const isNeut = app.classification === 'NEUTRAL'
-
-            const badgeClass = isProd
-              ? 'badge-productive'
-              : isDist
-              ? 'badge-distraction'
-              : isNeut
-              ? 'badge-neutral'
-              : 'badge-unknown'
-
-            const barColor = isProd
-              ? 'bg-emerald-400'
-              : isDist
-              ? 'bg-rose-400'
-              : 'bg-amber-400'
-
+            const color = CLASS_COLOR[app.classification] || '#6366f1'
+            const rgb = hexToRgb(color)
             const pct = Math.min(100, Math.round((app.total_seconds / maxSeconds) * 100))
+            const badgeClass = `badge-${(app.classification || 'unknown').toLowerCase()}`
 
             return (
-              <div key={idx} className="focus-card p-5 space-y-3">
-                {/* Header Row */}
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center font-mono font-bold text-xs text-slate-300">
-                      #{idx + 1}
+              <div
+                key={idx}
+                className="card card-glow"
+                style={{
+                  padding: '18px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                }}
+              >
+                {/* Top Row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                    {/* Rank */}
+                    <div style={{
+                      width: '36px', height: '36px',
+                      borderRadius: '10px',
+                      background: `rgba(${rgb},0.1)`,
+                      border: `1px solid rgba(${rgb},0.2)`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color,
+                      flexShrink: 0,
+                    }}>
+                      {String(idx + 1).padStart(2, '0')}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">
+
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#f0f4ff' }}>
                           {app.application}
                         </span>
                         <span className={`badge ${badgeClass}`}>
                           {app.category || app.classification}
                         </span>
                       </div>
-                      <span className="text-xs text-slate-400">
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
                         {app.session_count} active sessions
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="text-lg font-mono font-bold text-indigo-300">
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '16px', fontWeight: 700, color: '#f0f4ff' }}>
                       {app.total_formatted}
                     </div>
-                    <span className="text-xs text-slate-400">
-                      {Math.round(app.active_seconds / 60)}m active • {Math.round(app.idle_seconds / 60)}m idle
-                    </span>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {Math.round(app.active_seconds / 60)}m active · {Math.round(app.idle_seconds / 60)}m idle
+                    </div>
                   </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                {/* Progress bar */}
+                <div className="progress-track">
                   <div
-                    className={`h-full rounded-full ${barColor} transition-all duration-700`}
-                    style={{ width: `${pct}%` }}
+                    className="progress-fill"
+                    style={{
+                      width: `${pct}%`,
+                      background: `linear-gradient(90deg, rgba(${rgb},0.6), ${color})`,
+                    }}
                   />
                 </div>
 
-                {/* Footer Interaction Stats */}
-                <div className="flex items-center gap-6 pt-1 text-[11px] text-slate-400 font-mono">
-                  <span className="flex items-center gap-1.5">
-                    <Keyboard className="w-3.5 h-3.5 text-purple-400" />
-                    {app.keyboard_count?.toLocaleString() || 0} keystrokes
+                {/* Interaction Stats */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    <Keyboard size={12} color="#a855f7" />
+                    {app.keyboard_count?.toLocaleString() || 0} keys
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <MousePointer className="w-3.5 h-3.5 text-sky-400" />
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    <MousePointer size={12} color="#0ea5e9" />
                     {app.click_count?.toLocaleString() || 0} clicks
                   </span>
                 </div>
