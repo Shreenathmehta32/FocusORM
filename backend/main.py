@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.database import init_db
-from backend.routes import status, sessions, applications, websites, analytics, focus, settings, rules, privacy
+from backend.routes import status, sessions, applications, websites, analytics, focus, settings, rules, privacy, ai_settings
 
 logger = logging.getLogger("FocusORM.backend")
 
@@ -44,12 +44,27 @@ app.include_router(focus.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(rules.router, prefix="/api")
 app.include_router(privacy.router, prefix="/api")
+app.include_router(ai_settings.router, prefix="/api")
 
 
 @app.on_event("startup")
 async def startup():
     init_db()
+    from agent.main import get_agent
+    agent = get_agent()
+    if not agent.is_running:
+        agent.start()
+        logger.info("FocusORM tracking agent started automatically with backend")
     logger.info("FocusORM backend started on 127.0.0.1:8745")
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    from agent.main import get_agent
+    agent = get_agent()
+    if agent.is_running:
+        agent.stop()
+        logger.info("FocusORM tracking agent stopped with backend")
 
 
 @app.get("/")

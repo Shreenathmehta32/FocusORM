@@ -74,26 +74,51 @@ class GroqClassifier:
         self._error_count = 0
         self._init_client()
 
-    def _init_client(self):
-        """Initialize the Groq client with API key from environment."""
+    def _init_client(self, api_key: str | None = None):
+        """Initialize the Groq client from credential store, env var, or explicit key."""
         if not GROQ_AVAILABLE:
             return
 
-        api_key = os.environ.get("GROQ_API_KEY", "")
+        # Priority 1: explicit key passed directly (used by reload)
         if not api_key:
-            logger.info("GROQ_API_KEY not set — AI classification disabled")
+            # Priority 2: secure local credential store (~/.FocusORM/credentials.json)
+            try:
+                from backend.credential_store import load_credential
+                api_key = load_credential("groq")
+            except Exception:
+                pass
+
+        if not api_key:
+            # Priority 3: environment variable (backward-compatible fallback)
+            api_key = os.environ.get("GROQ_API_KEY", "")
+
+        if not api_key:
+            logger.info("Groq provider not configured — AI classification disabled")
             return
 
         try:
             self._client = Groq(api_key=api_key)
             self._enabled = True
-            logger.info("Groq classifier initialized")
+            logger.info("Groq provider initialized")
         except Exception as e:
-            logger.error(f"Failed to initialize Groq client: {e}")
+            logger.error("Failed to initialize Groq client: %s", type(e).__name__)
 
     @property
     def is_enabled(self) -> bool:
         return self._enabled and self._client is not None
+
+    def reload(self, api_key: str | None = None):
+        """
+        Hot-reload the Groq client with a new or cleared API key.
+        Called by the AI settings route when the user saves or removes a key.
+        api_key=None → disables Groq.
+        """
+        self._client = None
+        self._enabled = False
+        if api_key:
+            self._init_client(api_key=api_key)
+        else:
+            logger.info("Groq provider not configured — AI classification disabled")
 
     def classify(self, payload: dict) -> dict | None:
         """

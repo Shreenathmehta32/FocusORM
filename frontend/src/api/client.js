@@ -26,6 +26,11 @@ export const api = {
   getFocus: (date) => fetchAPI(`/focus?target_date=${date || new Date().toISOString().split('T')[0]}`),
   getSettings: () => fetchAPI('/settings'),
   updateSettings: (data) => fetchAPI('/settings', { method: 'POST', body: JSON.stringify(data) }),
+  // AI provider settings
+  getAISettings: () => fetchAPI('/settings/ai'),
+  saveAISettings: (data) => fetchAPI('/settings/ai', { method: 'POST', body: JSON.stringify(data) }),
+  testAIConnection: () => fetchAPI('/settings/ai/test', { method: 'POST' }),
+  deleteAISettings: () => fetchAPI('/settings/ai', { method: 'DELETE' }),
   getRules: () => fetchAPI('/rules'),
   createRule: (rule) => fetchAPI('/rules', { method: 'POST', body: JSON.stringify(rule) }),
   getPrivacy: () => fetchAPI('/privacy'),

@@ -18,7 +18,7 @@ ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 # ─── Polling & Aggregation ───────────────────────────────
 POLL_INTERVAL_SECONDS = 5          # How often to check active window
-AGGREGATION_INTERVAL_SECONDS = 30  # How often to flush interaction metrics
+AGGREGATION_INTERVAL_SECONDS = 10  # How often to flush metrics + upsert live session to DB
 IDLE_THRESHOLD_SECONDS = 300       # 5 minutes of no input = idle
 MIN_SESSION_DURATION_SECONDS = 2   # Ignore sessions shorter than this
 

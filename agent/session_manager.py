@@ -283,13 +283,85 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Crash recovery failed: {e}")
 
+    def upsert_live_session(self):
+        """
+        Write (INSERT OR REPLACE) the current in-progress session to the DB
+        so the dashboard can see live data even before the session ends.
+        Called periodically by the agent's aggregation loop.
+        """
+        session = self.current_session
+        if not session:
+            return
+
+        # Calculate current active/idle time snapshot
+        now = time.time()
+        idle_accum = self._session_idle_accumulated
+        if self._was_idle and self._idle_started_at:
+            idle_accum += now - self._idle_started_at
+        active_secs = max(0, session.duration_seconds - idle_accum)
+
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO activity_sessions (
+                    id, start_time, end_time, duration_seconds,
+                    application, process_name, window_title,
+                    is_browser, domain, page_title,
+                    classification, category, confidence,
+                    keyboard_count, mouse_move_count, click_count, scroll_count,
+                    active_seconds, idle_seconds,
+                    files_created, files_modified, files_deleted
+                ) VALUES (
+                    ?, ?, NULL, ?,
+                    ?, ?, ?,
+                    ?, ?, ?,
+                    ?, ?, ?,
+                    ?, ?, ?, ?,
+                    ?, ?,
+                    ?, ?, ?
+                )
+                """,
+                (
+                    session.id,
+                    session.start_datetime.isoformat(),
+                    round(session.duration_seconds, 1),
+                    session.application,
+                    session.process_name,
+                    session.window_title,
+                    1 if session.is_browser else 0,
+                    session.domain,
+                    session.page_title,
+                    session.classification,
+                    session.category,
+                    round(session.confidence, 3),
+                    session.keyboard_count,
+                    session.mouse_move_count,
+                    session.click_count,
+                    session.scroll_count,
+                    round(active_secs, 1),
+                    round(idle_accum, 1),
+                    session.files_created,
+                    session.files_modified,
+                    session.files_deleted,
+                ),
+            )
+            conn.commit()
+            conn.close()
+            logger.debug(
+                f"Live upsert: {session.application} "
+                f"({session.duration_seconds:.0f}s, {session.classification})"
+            )
+        except Exception as e:
+            logger.error(f"Failed to upsert live session: {e}")
+
     def _save_session(self, session: ActivitySession):
         """Persist a completed session to SQLite."""
         try:
             conn = sqlite3.connect(str(DB_PATH))
             conn.execute(
                 """
-                INSERT INTO activity_sessions (
+                INSERT OR REPLACE INTO activity_sessions (
                     id, start_time, end_time, duration_seconds,
                     application, process_name, window_title,
                     is_browser, domain, page_title,

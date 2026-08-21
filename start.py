@@ -31,11 +31,15 @@ logger = logging.getLogger("FocusORM")
 
 def main():
     """Start FocusORM: agent + backend."""
+    # Ensure stdout handles UTF-8 on Windows
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     print()
-    print("  ╔═══════════════════════════════════════════╗")
-    print("  ║               ⚡ FocusORM                  ║")
-    print("  ║   Privacy-First Productivity Intelligence ║")
-    print("  ╚═══════════════════════════════════════════╝")
+    print("  ===========================================")
+    print("  *               FocusORM                  *")
+    print("  *   Privacy-First Productivity Intelligence *")
+    print("  ===========================================")
     print()
 
     # Import after path setup
@@ -63,9 +67,9 @@ def main():
     logger.info(f"Dashboard: http://{BACKEND_HOST}:{BACKEND_PORT}")
     logger.info(f"API docs:  http://{BACKEND_HOST}:{BACKEND_PORT}/docs")
     print()
-    print(f"  🌐 API running at http://{BACKEND_HOST}:{BACKEND_PORT}")
-    print(f"  📊 Open http://localhost:5173 for the dashboard")
-    print(f"  ⏸  Press Ctrl+C to stop")
+    print(f"  API running at http://{BACKEND_HOST}:{BACKEND_PORT}")
+    print(f"  Open http://localhost:5173 for the dashboard")
+    print(f"  Press Ctrl+C to stop")
     print()
 
     try:

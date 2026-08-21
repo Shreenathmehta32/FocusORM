@@ -242,10 +242,12 @@ class FocusOSAgent:
                         self._classify_session(new_session)
                         self._last_window = window
 
-                # 5. Periodic metrics aggregation
+                # 5. Periodic metrics aggregation + live DB upsert
                 now = time.time()
                 if now - self._last_aggregation_time >= AGGREGATION_INTERVAL_SECONDS:
                     self._flush_metrics_to_session()
+                    # Write current session to DB so dashboard can see live data
+                    self.session_manager.upsert_live_session()
                     self._last_aggregation_time = now
 
                 # Sleep until next poll

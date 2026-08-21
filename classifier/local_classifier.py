@@ -210,3 +210,20 @@ class LocalClassifier:
     def get_ai_log(self, limit: int = 50) -> list[dict]:
         """Get AI request transparency log."""
         return self.cache.get_ai_request_log(limit)
+
+    def reload_groq(self, api_key: str | None = None):
+        """
+        Hot-reload the Groq classifier with a new or cleared API key.
+        Called by the AI settings route after the user saves/removes a key.
+        api_key=None → disables Groq.
+        """
+        if self.groq is None:
+            if api_key:
+                # Groq was previously disabled; create classifier now
+                from classifier.groq_classifier import GroqClassifier
+                self.groq = GroqClassifier()
+                self.groq.reload(api_key)
+                self._groq_enabled = True
+        else:
+            self.groq.reload(api_key)
+            self._groq_enabled = bool(api_key)

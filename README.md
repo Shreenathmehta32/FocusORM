@@ -94,13 +94,24 @@ npm run build
 cd ..
 ```
 
-### 3. Optional: Configure Groq API (for AI classification)
+### 3. Configure Groq AI (Optional — no code editing required)
 
-Copy `.env.example` to `.env` and set your key:
-```env
-GROQ_API_KEY=gsk_your_groq_api_key_here
-```
-*(If Groq is disabled or key is omitted, FocusORM uses local deterministic rules for 100+ applications and websites).*
+Groq is **optional**. FocusORM works fully without it using local classification rules for 100+ apps and websites.
+
+To enable AI-powered classification:
+
+1. Start FocusORM and open the dashboard.
+2. Go to **Settings → AI Provider**.
+3. Enter your Groq API key (get one free at [console.groq.com/keys](https://console.groq.com/keys)).
+4. Click **Save**, then **Test Connection**.
+
+Your key is stored in `~/.FocusORM/credentials.json` — **on your local machine only**. It is:
+- ✅ Never committed to Git
+- ✅ Never included in source code
+- ✅ Never returned to the frontend in plaintext
+- ✅ Only sent to Groq when classifying an activity
+
+> **Legacy fallback**: You can still set `GROQ_API_KEY` in a `.env` file if you prefer. The dashboard method takes priority.
 
 ---
 

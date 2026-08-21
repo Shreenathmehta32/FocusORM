@@ -45,6 +45,11 @@ venv.bak/
 .env.*.local
 *.env
 
+# Credential & secret files (belt-and-suspenders; real storage is in ~/.FocusORM/)
+credentials.json
+secrets.json
+*.credentials.json
+
 # SQLite Databases & Local FocusOS runtime data
 *.db
 *.sqlite
